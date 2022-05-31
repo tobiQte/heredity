@@ -140,35 +140,60 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone not in set` have_trait` does not have the trait.
     """
     joint_prob = 1.0
-    # EXAMPLE DATA:
-    one_gene = {'Harry'}
-    two_genes = {'James'}
-    have_trait = {'Harry', 'James'}
-    print(f"people {people}")
-    print(f"one gene {one_gene}")
-    print(f"two genes {two_genes}")
-    print(f"have trait {have_trait}")
 
     # for anyone with no parents: use PROBS["gene"]
     for person in people:
+        trait = person in have_trait
+
         if not people[person]["mother"] and not people[person]["father"]:
             if person in one_gene:
                 joint_prob *= PROBS["gene"][1]
+
+                #trait:
+                joint_prob *= PROBS["trait"][1][trait]
             elif person in two_genes:
                 joint_prob *= PROBS["gene"][2]
-            else:
+
+                # trait:
+                joint_prob *= PROBS["trait"][2][trait]
+            elif person not in one_gene and person not in two_genes:
                 joint_prob *= PROBS["gene"][0]
 
+                # trait:
+                joint_prob *= PROBS["trait"][0][trait]
+
+        # each parent will pass one of their two genes on to their child randomly + PROBS["Mutation"] chance it mutates
+        # calculate CONDITIONAL PROBABILITIES:
         else:
-            # each parent will pass one of their two genes on to their child randomly + PROBS["Mutation"] chance it mutates
-            if people[person]["mother"] in one_gene:
-                joint_prob += 0.5
-            elif:
-                people[person]["mother"] in one_gene:
-            else:
+            mother = people[person]["mother"]
+            father = people[person]["father"]
+            inheritance_prob = {mother: 0, father: 0}
+
+            # calculate inheritance probability based on placement of parent:
+            for parent in inheritance_prob:
+
+                # if parent has one gene then is has 0.5 probability of passing, unless it mutates.
+                if parent in one_gene:
+                    inheritance_prob[parent] = 0.5
+
+                # if parent has two genes than 100% possibility of passing unless it mutates!
+                if parent in two_genes:
+                    inheritance_prob[parent] = 1 - PROBS["mutation"]
+
+                # if parent not in one gene and not in two genes, then the only probability is mutation:
+                if parent not in one_gene and parent not in two_genes:
+                    inheritance_prob[parent] = PROBS["mutation"]
+
+            # calculate conditional probability:
+            if person in one_gene:
+                joint_prob *= inheritance_prob[mother] * (1- inheritance_prob[father]) + (1-inheritance_prob[mother]) * inheritance_prob[father]
+            if person in two_genes:
+                joint_prob *= inheritance_prob[father] * inheritance_prob[mother]
+            if person not in one_gene and person not in two_genes:
+                joint_prob *= (1-inheritance_prob[mother]) * (1-inheritance_prob[father])
 
 
-    print(f"Joint Prob: {joint_prob}")
+    return joint_prob
 
 
 def update(probabilities, one_gene, two_genes, have_trait, p):
@@ -178,16 +203,37 @@ def update(probabilities, one_gene, two_genes, have_trait, p):
     Which value for each distribution is updated depends on whether
     the person is in `have_gene` and `have_trait`, respectively.
     """
-    raise NotImplementedError
-
+    print(probabilities)
+    for person in probabilities:
+        trait = person in have_trait
+        gene = (
+            2 if person in two_genes else
+            1 if person in one_gene else
+            0
+        )
+        probabilities[person]["gene"][gene] += p
+        probabilities[person]["trait"][trait] += p
 
 def normalize(probabilities):
     """
     Update `probabilities` such that each probability distribution
     is normalized (i.e., sums to 1, with relative proportions the same).
     """
-    raise NotImplementedError
+    for person in probabilities:
+        sum = 0
+        sum_trait = 0
 
+        for value in probabilities[person]["gene"].values():
+            sum += value
+
+        for value in probabilities[person]["gene"]:
+            probabilities[person]["gene"][value] = probabilities[person]["gene"][value] / sum
+
+        for value in probabilities[person]["trait"].values():
+            sum_trait += value
+
+        for value in probabilities[person]["trait"]:
+            probabilities[person]["trait"][value] = probabilities[person]["trait"][value] / sum_trait
 
 if __name__ == "__main__":
     main()
